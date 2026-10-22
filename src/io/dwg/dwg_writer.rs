@@ -995,7 +995,12 @@ fn acds_data<'a>(
             return std::borrow::Cow::Borrowed(raw.as_slice());
         }
     }
-    std::borrow::Cow::Owned(build_acds_prototype(sab_entries))
+    // Records in handle order, as AutoCAD writes them, rather than in the
+    // order the entities happened to be encoded (block definitions first):
+    // the data store of a drawing that went through DXF then keeps its order.
+    let mut ordered = sab_entries.to_vec();
+    ordered.sort_by_key(|(handle, _)| handle.value());
+    std::borrow::Cow::Owned(build_acds_prototype(&ordered))
 }
 
 /// Whether the version uses the AC21 (R2007) file format.

@@ -11846,10 +11846,15 @@ impl<'a, W: DxfStreamWriter> SectionWriter<'a, W> {
         // Schemas 2-5: Standard infrastructure schemas
         self.write_acds_infrastructure_schemas()?;
 
-        // ACDSRECORD entries (one per entity with SAB data)
+        // ACDSRECORD entries (one per entity with SAB data), in handle order
+        // as AutoCAD writes them, not in the order the entities were written
+        // (block definitions first), so the section doesn't reorder itself
+        // on every DWG round trip.
         // Take entries from self to avoid borrow issues
         let entries = std::mem::take(&mut self.sab_entries);
-        for (entity_handle, sab_data) in &entries {
+        let mut ordered: Vec<&(Handle, Vec<u8>)> = entries.iter().collect();
+        ordered.sort_by_key(|(handle, _)| handle.value());
+        for (entity_handle, sab_data) in ordered {
             self.write_acds_record(*entity_handle, sab_data)?;
         }
         self.sab_entries = entries;
